@@ -1,5 +1,6 @@
 // создаю канвас
 const canvas = document.createElement("canvas");
+canvas.classList.add('canvas');
 const ctx = canvas.getContext("2d");
 canvas.width = 576;
 canvas.height = 576;
@@ -99,9 +100,8 @@ function update(snake, apple) {
 };
 
 // отрисовка
-// Draw everything
 function render(snake) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(1, 1, canvas.width - 1, canvas.height - 1);
     renderBorder();
     const segments = snake.segments;
     for (let i = 0; i < segments.length; i++) {
@@ -143,8 +143,8 @@ const main = function () {
 	const now = Date.now();
 	const delta = now - then;
 
-    if (delta > 150) {
-        update(snake, apple, delta / 1000);
+    if (delta > 80) {
+        update(snake, apple);
         render(snake);
         then = now;
     }
