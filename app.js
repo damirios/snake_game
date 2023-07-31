@@ -1,9 +1,9 @@
-// создаю канвас
+// создаю канвас ===================================================================
 const canvas = document.createElement("canvas");
 canvas.classList.add('canvas');
 const ctx = canvas.getContext("2d");
-canvas.width = 576;
-canvas.height = 576;
+canvas.width = 400;
+canvas.height = 400;
 document.body.appendChild(canvas);
 
 class Segment {
@@ -77,32 +77,36 @@ class Apple {
         this.y = y;
     }
 
-    changePosition() {
-        const randomX = Math.floor(Math.random() * (canvas.width - 16) / 16) * 16;
-        const randomY = Math.floor(Math.random() * (canvas.height - 16) / 16) * 16;
-
-        this.x = 16 + randomX;
-        this.y = 16 + randomY;
+    changePosition(newX, newY) {
+        this.x = newX;
+        this.y = newY;
     }
 }
 
-// цикл обновления
+function ObstacleCreator({direction, length, x, y}) {
+    return {
+        x, y, direction, length
+    }
+}
+
+// цикл обновления ==================================================================
 function update(snake, apple) {
     let isAppleEaten = false;
     if (snake.head.x === apple.x && snake.head.y === apple.y) {
         isAppleEaten = true;
     }
     snake.moveSnake(1, isAppleEaten);
-    if (isAppleEaten) {
-        apple.changePosition();
-    }
     
+    if (isAppleEaten) {
+        setAppleIntoNewPosition(apple);
+    }
 };
 
-// отрисовка
+// отрисовка ========================================================================
 function render(snake) {
     ctx.clearRect(1, 1, canvas.width - 1, canvas.height - 1);
     renderBorder();
+    renderObstacles(obstacles);
     const segments = snake.segments;
     for (let i = 0; i < segments.length; i++) {
         const segment = segments[i];
@@ -110,7 +114,13 @@ function render(snake) {
     }
 
     ctx.fillStyle = "red";
-    ctx.fillRect(apple.x, apple.y, 16, 16);
+    ctx.beginPath();
+    ctx.arc(apple.x + 8, apple.y + 8, 8, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillStyle = "green";
+    ctx.beginPath();
+    ctx.arc(apple.x + 14, apple.y + 2, 4, 0, 1.2 * Math.PI);
+    ctx.fill();
 };
 
 function renderBorder() {
@@ -138,12 +148,26 @@ function renderSegment(segment, eyes) {
     }
 }
 
-// игровой цикл
+function renderObstacles(obstacles) {
+    for (let obstacle of obstacles) {
+        const width = obstacle.direction === 'horizontal' ? obstacle.length * 16 : 16;
+        const height = obstacle.direction === 'vertical' ? obstacle.length * 16 : 16;
+        ctx.fillStyle = "grey";
+        ctx.fillRect(obstacle.x, obstacle.y, width, height);
+        ctx.fillStyle = "black";
+        ctx.fillRect(obstacle.x, obstacle.y, 1, height);
+        ctx.fillRect(obstacle.x + width, obstacle.y, 1, height);
+        ctx.fillRect(obstacle.x, obstacle.y, width, 1);
+        ctx.fillRect(obstacle.x, obstacle.y + height, width, 1);
+    }
+}
+
+// игровой цикл =====================================================================
 const main = function () {
 	const now = Date.now();
 	const delta = now - then;
 
-    if (delta > 80) {
+    if (delta > 120) {
         update(snake, apple);
         render(snake);
         then = now;
@@ -153,22 +177,80 @@ const main = function () {
 	requestAnimationFrame(main);
 };
 
-// начальный запуск
+// начальный запуск =================================================================
 const snake = new Snake();
-const apple = new Apple({x: 64, y: 64}); 
+const apple = new Apple({x: 64, y: 64});
+const obstacles = createObstacles();
 let then = Date.now() - 200;
 main();
 
 addEventListener("keydown", function (e) {
-    if (e.keyCode === 38) {
-        snake.setDirection('up');
-    } else if (e.keyCode === 40) {
-        snake.setDirection('down');
-    } else if (e.keyCode === 37) {
-        snake.setDirection('left');
-    } else if (e.keyCode === 39) {
-        snake.setDirection('right');
-    }
+    changeSnakeDirection(e.keyCode);
 }, false);
 
-// вспомогательные функции
+// вспомогательные функции ==========================================================
+function changeSnakeDirection(keyCode) {
+    if (keyCode === 38 && snake.direction !== 'down') {
+        snake.setDirection('up');
+    } else if (keyCode === 40 && snake.direction !== 'up') {
+        snake.setDirection('down');
+    } else if (keyCode === 37 && snake.direction !== 'right') {
+        snake.setDirection('left');
+    } else if (keyCode === 39 && snake.direction !== 'left') {
+        snake.setDirection('right');
+    }
+}
+
+function createObstacles() {
+    const N = 7;
+    const minLen = 3;
+    const maxLen = 20;
+    const obstacles = [];
+    for (let i = 0; i < N; i++) {
+        const len = minLen + Math.floor(Math.random() * (maxLen - minLen));
+        const direction = Math.random() > 0.5 ? 'vertical' : 'horizontal';
+        const x = Math.floor( (Math.random() * (canvas.width - (direction === 'horizontal' ? len : 0))) / 16 ) * 16;
+        const y = Math.floor( (Math.random() * (canvas.height - (direction === 'vertical' ? len : 0))) / 16 ) * 16;
+        obstacles.push(ObstacleCreator({direction, length: len, x, y}));
+    }
+
+    return obstacles;
+}
+
+function getNewPosition() {
+    return {
+        randomX: 16 + Math.floor(Math.random() * (canvas.width - 16) / 16) * 16,
+        randomY: 16 + Math.floor(Math.random() * (canvas.height - 16) / 16) * 16
+    }
+}
+
+function isInObstacle(x, y, obstacles) {
+    for (let obstacle of obstacles) {
+        if ( (obstacle.direction === 'horizontal' && obstacle.y === y && x >= obstacle.x && x <= obstacle.x + obstacle.length * 16) ||
+        (obstacle.direction === 'vertical' && obstacle.x === x && y >= obstacle.y && y <= obstacle.y + obstacle.length * 16) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function isInSnake(x, y) {
+    for (let segment of snake.segments) {
+        if ( segment.y === y && segment.x === x ) {
+            console.log('in snake!');
+            return true;
+        }
+    }
+
+    return false;
+} 
+
+function setAppleIntoNewPosition(apple) {
+    const {randomX, randomY} = getNewPosition();
+    if (isInObstacle(randomX, randomY, obstacles) || isInSnake(randomX, randomY)) {
+        setAppleIntoNewPosition(apple);
+    } else {
+        apple.changePosition(randomX, randomY);
+    }
+}
